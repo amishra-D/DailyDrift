@@ -36,6 +36,7 @@ const Signup = () => {
         const user = userCredential.user;
         console.log("User signed up:", user);
         toast.success("Signup successful!");
+        navigate('/login')
       })
       .catch((error) => {
         console.error("Error signing up:", error.message);
@@ -44,8 +45,8 @@ const Signup = () => {
   }
   
   return (
-    <div className="flex flex-col gap-4 w-full max-w-sm mx-auto mt-10">
-      <Card>
+    <div className="flex flex-col relative gap-4 w-full max-w-sm mx-auto mt-10">
+            <Card>
   <CardHeader>
     <CardTitle className={"font-bold text-2xl"}>SIGN UP</CardTitle>
     <CardDescription>Make your days unregretful</CardDescription>

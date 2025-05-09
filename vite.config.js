@@ -3,11 +3,10 @@ import tailwindcss from "@tailwindcss/vite"
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vite.dev/config/
 export default defineConfig({
   base: "/DailyDrift/",
   build: {
-    outDir: 'dist',  // Ensure it's the 'dist' folder
+    outDir: 'dist',
   },
   plugins: [react(), tailwindcss()],
 

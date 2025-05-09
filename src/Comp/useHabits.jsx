@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "@/Firebase";
 
 export default function useHabits(user) {
@@ -7,25 +7,26 @@ export default function useHabits(user) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
+    if (!user?.uid) {
       setHabits([]);
       setLoading(false);
       return;
     }
 
-    const fetch = async () => {
-      try {
-        const snap = await getDocs(collection(db, "habits", user.uid, "userHabits"));
-        const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    const unsubscribe = onSnapshot(
+      collection(db, "habits", user.uid, "userHabits"),
+      (snapshot) => {
+        const docs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
         setHabits(docs);
-      } catch (error) {
+        setLoading(false);
+      },
+      (error) => {
         console.error("Error fetching habits:", error);
-      } finally {
         setLoading(false);
       }
-    };
+    );
 
-    fetch();
+    return () => unsubscribe();
   }, [user]);
 
   return { habits, loading };

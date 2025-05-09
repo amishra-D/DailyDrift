@@ -9,7 +9,7 @@ import { Routes, Route} from 'react-router-dom';
 import Homep from './Comp/Homep'
 import Dashboard from './Comp/Dashboard'
 import { onAuthStateChanged } from "firebase/auth"
-import { auth } from "./firebase"
+import { auth } from "@/Firebase"
 import Analytics from './Comp/Analytics'
 import Settings from './Comp/Settings'
 

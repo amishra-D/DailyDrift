@@ -3,20 +3,31 @@ import StatCard from "@/Comp/StatCard";
 import HabitsCard from "@/Comp/HabitsCard";
 import Allhabits from "./Allhabits";
 import Loader from "./Loader";
-import Header from "./Header"
+import Header from "./Header";
 
 import { Flame, Trophy, Check } from "lucide-react";
 import { useEffect, useState } from "react";
-import { doc, getDoc, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  arrayUnion,
+  collection,
+  getDocs,
+} from "firebase/firestore";
 import { Progress } from "@/components/ui/progress";
 import useHabits from "./useHabits";
 import { db } from "@/Firebase";
+import { format, subDays } from "date-fns";
 
 export default function Dashboard({ user }) {
   const { habits, loading } = useHabits(user);
   const [completedIds, setCompletedIds] = useState([]);
+  const [streak, setStreak] = useState(0);
 
   const today = new Date().toLocaleDateString("en-US", { weekday: "long" });
+  const todayFormatted = format(new Date(), "yyyy-MM-dd");
   const logRef = user ? doc(db, "logs", user.uid, "dailyLogs", today) : null;
 
   useEffect(() => {
@@ -24,7 +35,9 @@ export default function Dashboard({ user }) {
       if (!logRef) return;
       const snap = await getDoc(logRef);
       if (snap.exists()) {
-        setCompletedIds(snap.data().completedHabits || []);
+        const habitsData = snap.data().completedHabits || [];
+        const ids = habitsData.map((h) => h.id);
+        setCompletedIds(ids);
       }
     };
     fetchLogs();
@@ -33,27 +46,84 @@ export default function Dashboard({ user }) {
   const toggleHabit = async (id) => {
     if (!logRef || completedIds.includes(id)) return;
 
+    const newEntry = {
+      id,
+      completedAt: todayFormatted,
+    };
+
     const snap = await getDoc(logRef);
     if (snap.exists()) {
       await updateDoc(logRef, {
-        completedHabits: arrayUnion(id),
+        completedHabits: arrayUnion(newEntry),
       });
     } else {
       await setDoc(logRef, {
-        completedHabits: [id],
+        completedHabits: [newEntry],
       });
     }
 
     setCompletedIds((prev) => [...prev, id]);
   };
 
-  if (!user || loading) return <Loader />;
+  const updateStreak = async () => {
+    const logsCollection = collection(db, "logs", user.uid, "dailyLogs");
+    const snapshot = await getDocs(logsCollection);
+
+    const allDates = [];
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
+      const entries = data.completedHabits || [];
+
+      if (entries.length > 0) {
+        const first = entries[0];
+        if (first.completedAt) {
+          allDates.push(first.completedAt);
+        }
+      }
+    });
+
+    const uniqueDates = [...new Set(allDates)].sort((a, b) => new Date(b) - new Date(a));
+    let streakCount = 0;
+
+    for (let i = 0; i < uniqueDates.length; i++) {
+      const expectedDate = format(subDays(new Date(), i), "yyyy-MM-dd");
+      if (uniqueDates.includes(expectedDate)) {
+        streakCount += 1;
+      } else {
+        break;
+      }
+    }
+
+    const streakRef = doc(db, "users", user.uid, "meta", "streak");
+    await setDoc(streakRef, {
+      currentStreak: streakCount,
+    });
+
+    setStreak(streakCount);
+  };
+
+  useEffect(() => {
+    const fetchStreak = async () => {
+      const streakRef = doc(db, "users", user.uid, "meta", "streak");
+      const snap = await getDoc(streakRef);
+      if (snap.exists()) {
+        setStreak(snap.data().currentStreak || 0);
+      }
+    };
+    fetchStreak();
+  }, [user]);
+
   const todaysHabits = habits.filter((habit) =>
     habit.frequency?.includes(today)
   );
-
   const completed = todaysHabits.filter((h) => completedIds.includes(h.id));
   const incomplete = todaysHabits.filter((h) => !completedIds.includes(h.id));
+
+  useEffect(() => {
+    if (todaysHabits.length > 0 && completed.length === todaysHabits.length) {
+      updateStreak();
+    }
+  }, [completed, todaysHabits]);
 
   const completionRate = todaysHabits.length
     ? (completed.length / todaysHabits.length) * 100
@@ -76,16 +146,18 @@ export default function Dashboard({ user }) {
 
   const barColor = getProgressColor(completionRate);
 
+  if (!user || loading) return <Loader />;
+
   return (
     <div className="flex min-h-screen w-full">
       <Mysideb user={user} />
 
       <div className="flex flex-col w-full px-6 py-8 gap-6">
-   <Header type={"Dashboard"}></Header>
+        <Header type={"Dashboard"} />
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <StatCard title="Total Habits Completed" value={completed.length} icon={Trophy} />
-          <StatCard title="Current Streak" value="48 days" icon={Flame} />
+          <StatCard title="Current Streak" value={`${streak} days`} icon={Flame} />
           <StatCard title="Completion Rate" value={`${completionRate.toFixed(0)}%`} icon={Check} />
           <Allhabits habits={habits} user={user} />
         </div>

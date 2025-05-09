@@ -39,8 +39,7 @@ const Homep = ({user}) => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
         >
-          HABITITY
-        </motion.h1>
+DAILY DRIFT        </motion.h1>
         
         <motion.p 
           className="text-base opacity-80 max-w-xs sm:text-xl sm:max-w-xl"

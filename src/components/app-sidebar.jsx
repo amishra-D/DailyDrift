@@ -35,7 +35,7 @@ export function AppSidebar({user}) {
 <Sidebar className="w-64 h-screen bg-muted text-foreground border-r z-51">
   <SidebarContent className="p-4">
     <SidebarGroup>
-      <SidebarGroupLabel className="text-lg font-semibold mb-4">Habitity</SidebarGroupLabel>
+      <SidebarGroupLabel className="text-lg font-semibold mb-4">Daily Drift</SidebarGroupLabel>
       <SidebarGroupContent>
         <SidebarMenu className="space-y-2">
           {items.map((item) => (

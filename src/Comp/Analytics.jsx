@@ -4,6 +4,7 @@ import Header from './Header'
 import "react-calendar-heatmap/dist/styles.css";
 import Heatmap from './Heatmap';
 import Barcharts from './Barcharts';
+import { Piecard} from './Piecard';
 const Analytics = ({user}) => {
   return (
     <div className="flex min-h-screen w-full">
@@ -13,7 +14,8 @@ const Analytics = ({user}) => {
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       <Heatmap user={user}></Heatmap>
       <Barcharts user={user} />
-      </div>
+<Piecard user={user}></Piecard>  
+    </div>
     </div>
     </div>
   )

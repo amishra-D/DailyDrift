@@ -1,89 +1,101 @@
 import { useEffect, useState } from "react";
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { db } from "@/Firebase"; // Your Firebase configuration
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "@/Firebase";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
-import { TrendingUp } from "lucide-react";
-import { Bar, BarChart, CartesianGrid, LabelList, XAxis, Tooltip, ResponsiveContainer } from "recharts";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+  CardFooter,
+} from "@/components/ui/card";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  XAxis,
+  ResponsiveContainer,
+  LabelList,
+  Tooltip,
+} from "recharts";
+
+const weekDays = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
 
 function BarChartComponent({ user }) {
   const [chartData, setChartData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [trendPercentage, setTrendPercentage] = useState(0);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchWeeklyLogs = async () => {
       try {
         setLoading(true);
-        const logsRef = collection(db, "logs");
-        const q = query(logsRef, where("userId", "==", user?.uid)); // Use user.uid
+        const logsRef = collection(db, `logs/${user.uid}/dailyLogs`);
+        const snapshot = await getDocs(logsRef);
 
-        const snapshot = await getDocs(q);
-        const monthlyData = {};
-        let totalHabits = 0;
-        let previousMonthHabits = 0;
+        const weeklyData = {};
 
         snapshot.forEach((doc) => {
-          const timestamp = doc.data().date;
-          const date = timestamp.toDate(); // Convert Firestore timestamp to Date object
-          const monthKey = date.toLocaleString("default", { month: "long" });
-          const year = date.getFullYear();
-
-          if (year === 2024) {  // Filter for current year
-            if (!monthlyData[monthKey]) monthlyData[monthKey] = 0;
-
-            const completedHabits = doc.data()?.completedHabits || []; // Get completed habits
-            monthlyData[monthKey] += completedHabits.length; // Add completed habits count to the month
-            totalHabits += completedHabits.length;
-
-            // For trend calculation (comparing this month to the previous month)
-            const currentDate = new Date();
-            const currentMonth = currentDate.getMonth();
-            if (date.getMonth() === currentMonth - 1) {
-              previousMonthHabits += completedHabits.length;
-            }
-          }
+          const weekday = doc.id;
+          const completedHabits = doc.data()?.completedHabits || [];
+          weeklyData[weekday] = completedHabits.length;
         });
 
-        // Calculate trend percentage
-        const currentMonthHabits = monthlyData[new Date().toLocaleString("default", { month: "long" })] || 0;
-        const trend = previousMonthHabits > 0 
-          ? ((currentMonthHabits - previousMonthHabits) / previousMonthHabits * 100).toFixed(1)
-          : 0;
-        setTrendPercentage(trend);
-
-        // Generate data for all months, even if no data exists
-        const months = ["January", "February", "March", "April", "May", "June", 
-                        "July", "August", "September", "October", "November", "December"];
-        const currentYear = new Date().getFullYear();
-        const currentMonthIndex = new Date().getMonth();
-        
-        // Only show months up to current month
-        const monthsToShow = months.slice(0, currentMonthIndex + 1);
-        
-        const sortedData = monthsToShow.map((month) => ({
-          month,
-          habits: monthlyData[month] || 0,
+        const formattedData = weekDays.map((day) => ({
+          day,
+          habits: weeklyData[day] || 0,
         }));
 
-        setChartData(sortedData);
+        setChartData(formattedData);
       } catch (err) {
-        console.error("Error fetching data:", err);
-        setError("Failed to load habit data");
+        console.error("Error fetching weekly logs:", err);
+        setError("Failed to load weekly habit data");
       } finally {
         setLoading(false);
       }
     };
 
-    if (user) fetchData();
+    if (user?.uid) {
+      fetchWeeklyLogs();
+    }
   }, [user]);
+
+  const renderCustomizedLabel = (props) => {
+    const { x, y, width, value } = props;
+    if (value === 0) return null;
+
+    return (
+      <g>
+        <rect x={x} y={y - 20} width={width} height={20} fill="#6366f1" rx={4} />
+        <text
+          x={x + width / 2}
+          y={y - 10}
+          fill="#fff"
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fontSize={12}
+          fontWeight={500}
+        >
+          {value}
+        </text>
+      </g>
+    );
+  };
 
   if (loading) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Monthly Habit Activity</CardTitle>
+          <CardTitle>Weekly Habit Activity</CardTitle>
           <CardDescription>Loading your habit data...</CardDescription>
         </CardHeader>
         <CardContent>
@@ -97,63 +109,64 @@ function BarChartComponent({ user }) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Monthly Habit Activity</CardTitle>
+          <CardTitle>Weekly Habit Activity</CardTitle>
           <CardDescription>{error}</CardDescription>
         </CardHeader>
-        <CardContent className="text-destructive">
-          {error}
-        </CardContent>
+        <CardContent className="text-destructive">{error}</CardContent>
       </Card>
     );
   }
 
+  const total = chartData.reduce((sum, item) => sum + item.habits, 0);
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Monthly Habit Activity</CardTitle>
-        <CardDescription>
-          {chartData.length > 0 
-            ? `${chartData[0].month} - ${chartData[chartData.length - 1].month} ${new Date().getFullYear()}`
-            : "No data available"}
-        </CardDescription>
+        <CardTitle className="font-bold text-xl">Weekly Habit Activity</CardTitle>
+        <CardDescription>Habits completed each day this week</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 20, right: 20, left: 20, bottom: 20 }}>
-              <CartesianGrid vertical={false} strokeDasharray="3 3" />
-              <XAxis
-                dataKey="month"
-                tickLine={false}
-                tickMargin={10}
-                axisLine={false}
-                tickFormatter={(value) => value.slice(0, 3)}
-              />
-              <Tooltip formatter={(value) => [`${value} habits`, "Completed"]} labelFormatter={(label) => `Month: ${label}`} />
-              <Bar dataKey="habits" fill="#8884d8" radius={[4, 4, 0, 0]}>
-                <LabelList dataKey="habits" position="top" formatter={(value) => value > 0 ? value : ''} fill="#000" fontSize={12} />
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          {total === 0 ? (
+            <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+              No habits completed this week
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={chartData}
+                margin={{ top: 20, right: 20, left: 20, bottom: 20 }}
+              >
+                <CartesianGrid vertical={false} strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="day"
+                  tickLine={false}
+                  tickMargin={10}
+                  axisLine={false}
+                  tickFormatter={(value) => value.slice(0, 3)}
+                />
+                <Tooltip
+                  content={({ payload, active }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className=" p-2 border rounded shadow text-sm font-medium ">
+                          {payload[0].value} completed habits
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Bar dataKey="habits" fill="#8884d8" radius={[4, 4, 0, 0]}>
+                  <LabelList dataKey="habits" content={renderCustomizedLabel} />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </CardContent>
-      <CardFooter className="flex-col items-start gap-2 text-sm">
-        {trendPercentage !== 0 && (
-          <div className="flex gap-2 font-medium leading-none">
-            {trendPercentage > 0 ? (
-              <>
-                Trending up by {trendPercentage}% this month <TrendingUp className="h-4 w-4 text-green-500" />
-              </>
-            ) : (
-              <>
-                Trending down by {Math.abs(trendPercentage)}% this month <TrendingUp className="h-4 w-4 text-red-500 transform rotate-180" />
-              </>
-            )}
-          </div>
-        )}
-        <div className="leading-none text-muted-foreground">
-          Showing total completed habits for {chartData.length} months
-        </div>
+      <CardFooter className="text-sm text-muted-foreground">
+        Total completed habits for the week
       </CardFooter>
     </Card>
   );
